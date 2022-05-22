@@ -1,0 +1,120 @@
+---
+title: "th4"
+author: "Ningzhen"
+date: '2022-05-21'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+packages = c('scales', 'viridis', 
+             'lubridate', 'ggthemes', 
+             'gridExtra', 'tidyverse', 
+             'readxl', 'knitr',
+             'data.table', 'ViSiElse','ggthemes','patchwork')
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p,character.only = T)
+}
+```
+
+\ 
+Load the daily event log data of participant 1 and 2
+\ 
+
+```{r warning=FALSE}
+log1<-read_csv('data/daily1.csv')
+log2<-read_csv('data/daily2.csv')
+
+```
+# Preprocessing 
+
+\ 
+Extract the date and time of the timestamp and save the date as index and time as a new numerical column. 
+\ 
+
+```{r}
+log1$index<-date(log1$timestamp)
+log1$time<-60*hour(log1$timestamp)+minute(log1$timestamp)
+log2$index<-date(log2$timestamp)
+log2$time<-60*hour(log2$timestamp)+minute(log2$timestamp)
+
+```
+\ 
+Use pivot to transform the data in the format that can be processed with visilie, keep only the start time of a currentMode and try plotting it.
+
+```{r message=FALSE, warning=FALSE}
+daily1<-log1 %>% group_by(index,currentMode)%>% summarise(start_time=min(time)) %>% arrange(index,start_time)
+daily1 <- daily1 %>% pivot_wider(names_from = currentMode, values_from = start_time)
+daily1$index <- 1:nrow(daily1)
+visielse(daily1)
+```
+\ 
+The result was not good, since the participant's events are very uncertain and there are no consistent sequences of these events. One event may start multiple times in a day. 
+\ 
+Try again with ggplot
+```{r message=FALSE, warning=FALSE}
+mode_levels <- c('AtHome', 'Transport', 
+                  'AtWork', 'AtRestaurant', 
+                  'AtRecreation')
+time_levels <- 0:288
+time_levels <-time_levels*5
+daily1<-log1 %>% select(currentMode,time) %>% mutate(currentMode=factor(currentMode,levels=mode_levels),time=factor(time,levels=time_levels))
+
+daily2<-log2 %>% select(currentMode,time) %>% mutate(currentMode=factor(currentMode,levels=mode_levels),time=factor(time,levels=time_levels))
+
+grouped <- daily1 %>% 
+  count(currentMode, time) %>% 
+  ungroup() %>%
+  na.omit()
+
+grouped2 <- daily2 %>% 
+  count(currentMode, time) %>% 
+  ungroup() %>%
+  na.omit()
+
+p1<-ggplot(grouped, 
+       aes(time, 
+           currentMode, 
+           fill = n)) + 
+geom_tile(color = "white", 
+          size = 0.1) + 
+#theme_tufte(base_family = "Helvetica") + 
+#coord_equal() +
+scale_fill_gradient(name = "# of days",
+                    low = "sky blue", 
+                    high = "dark blue") +
+labs(x = NULL, 
+     y = NULL, 
+     title = "Participant 1") +
+theme(axis.ticks = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      legend.title = element_text(size = 8),
+      legend.text = element_text(size = 6) )
+
+p2<-ggplot(grouped2, 
+       aes(time, 
+           currentMode, 
+           fill = n)) + 
+geom_tile(color = "white", 
+          size = 0.1) + 
+#theme_tufte(base_family = "Helvetica") + 
+#coord_equal() +
+scale_fill_gradient(name = "# of days",
+                    low = "sky blue", 
+                    high = "dark blue") +
+labs(x = NULL, 
+     y = NULL, 
+     title = "Participant 2") +
+theme(axis.ticks = element_blank(),
+      plot.title = element_text(hjust = 0.5),
+      legend.title = element_text(size = 8),
+      legend.text = element_text(size = 6) )
+```
+
+
+```{r}
+p1/p2
+```

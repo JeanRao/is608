@@ -11,4 +11,6 @@ navbar:
       href: about.html
     - text: "Inclass 6"
       href: handson_ex/ho6.html
+    - text: "TakeHome"
+      href: th_ex/th4.html
 output: distill::distill_article
