@@ -13,4 +13,7 @@ navbar:
       href: handson_ex/ho6.html
     - text: "TakeHome"
       href: th_ex/th4.html
+    - text: "Th5"
+      href: th_ex/th5.html
+      
 output: distill::distill_article

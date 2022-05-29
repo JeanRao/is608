@@ -87,7 +87,7 @@ hex <- st_make_grid(building, #define the bbox
                     square=FALSE) %>%
   st_sf() %>%
   rowid_to_column('hex_id')
-points_in_hex <- st_join(logs_selected, 
+points_in_hex <- st_join(log_selected, 
                         hex, 
                         join=st_within) %>%
   st_set_geometry(NULL) %>%

@@ -1,0 +1,170 @@
+---
+title: "TakeHomeEX5: Geospatial Plot"
+output:
+  html_document:
+    df_print: paged
+---
+## Question 1:
+Assuming the volunteers are representative of the city’s population, characterize the distinct areas of the city that you identify. For each area you identify, provide your rationale and supporting data. Limit your response to 10 images and 500 words. \ 
+\ 
+Distinct area: \ 
+
+ * 1. the area in which population shows a clear pattern. eg. high education area, high income area, area of elder people, area of young people etc.
+ * 2. the distinct area in terms of the usage of the buildings: the business area,  the residential area and the recreational area. 
+
+### data to be used: \
+* participant attribute data
+* participant journal data (to find out their living address)
+* building data, employer data, pubs and restaurant data, school data all combined together.
+
+### Data wrangling:  
+goal: 2 dataframes:  
+1. the location and attribute of participants  
+2. the location and usage of buildings  
+the data wrangling is omitted here, 
+
+## plotting  
+
+
+
+```{r message=FALSE, warning=FALSE}
+#import packages:
+packages = c( 'sf','tmap','tidyverse','lubridate',
+              'clock','sftime','rmarkdown')
+for (p in packages){
+  if(!require(p, character.only = T)){
+    install.packages(p)
+  }
+  library(p,character.only = T)
+}
+
+```
+
+
+```{r message=FALSE, warning=FALSE}
+#import dataset
+building=read_sf('data/buildingtype.csv',options='GEOM_POSSIBLE_NAMES=location')
+
+#categories polt
+tmap_mode('view')
+tm_shape(building)+
+  tm_polygons(col='category',
+  size=1,
+  border.col='black',
+  border.lwd=1)
+
+#commercial vs residential area plot
+tm_shape(building)+
+  tm_polygons(col='buildingType',
+  size=1,
+  border.col='black',
+  border.lwd=1)
+tmap_mode('plot')
+
+```
+  
+  
+### distinct area in terms of building usage:  
+
+\  
+There is a clear pattern of the business area and residential area, the business area include the northwest, the central and the south region, the residential area surrounds the business area.  
+\  
+\ The business area refers to the area with more commercial buildings. From the second figure, we can find 3 business area in the city:
+
+* 1. The first located in the northwest of the city. 
+* 2. The second and the largest CBD in the upper central region of the city.
+* 3. The third located in the northern part of the city.  
+
+### distinct area in terms of population attribute: 
+
+```{r message=FALSE, warning=FALSE}
+homeloc=read_sf('data/homeloc.csv',options='GEOM_POSSIBLE_NAMES=currentLocation')
+part=read_csv('data/Participants.csv')
+locattr=merge(x = homeloc, y = part, by = "participantId", all.x = TRUE)
+
+```
+```{r}
+tmap_mode('view')
+tm_shape(building)+
+  tm_polygons(col='grey60',
+  size=1,
+  border.col='black',
+  border.lwd=1)+
+tm_shape(locattr)+
+  tm_facets(by=c("educationLevel"), ncol =1)+
+  tm_dots(col='educationLevel',
+  size=0.1)
+tmap_mode('plot')
+
+```
+\  
+there is a vague pattern of the low education participants' residence: they tend to live in the northwest area.  
+the rest education groups does not display a clear pattern 
+\  
+
+```{r}
+tmap_mode('view')
+tm_shape(building)+
+  tm_polygons(col='grey60',
+  size=1,
+  border.col='black',
+  border.lwd=1)+
+tm_shape(locattr)+
+  tm_dots(col='age',
+  size=0.1)
+tmap_mode('plot')
+
+```
+\  
+From the age regional distribution plot we find that , there is a gathering of elderly people in the northwest corner of the city. In general, the northwest region is more crowded than the rest region of the city.
+
+### Question 2:
+\ Where are the busiest areas in Engagement? Are there traffic bottlenecks that should be addressed? Explain your rationale. Limit your response to 10 images and 500 words.  
+
+\ Where are the busiest areas in Engagement?  
+
+```{r}
+log_selected<-read_rds('data/logs_selected.rds')
+hex <- st_make_grid(building, #define the bbox 
+                    cellsize=100, #dimention:100x100
+                    square=FALSE) %>%
+  st_sf() %>%
+  rowid_to_column('hex_id')
+points_in_hex <- st_join(log_selected, 
+                        hex, 
+                        join=st_within) %>%
+  st_set_geometry(NULL) %>%
+  count(name='pointCount', hex_id)
+
+hex_combined <- hex %>%
+  left_join(points_in_hex, 
+            by = 'hex_id') %>%
+  replace(is.na(.), 0)
+#plot the count of people appearing in a certain region 
+tm_shape(hex_combined %>%
+           filter(pointCount > 0))+
+  tm_fill("pointCount",
+          n = 8,
+          style = "quantile") +
+  tm_borders(alpha = 0.1)
+```
+The busiest area is along the connection between the business regions.  
+\  
+Are there traffic bottlenecks that should be addressed
+
+```{r}
+log_path <- log_selected %>%
+  group_by(participantId, day) %>%
+  summarize(m = mean(Timestamp), 
+            do_union=FALSE) %>%
+  st_cast("LINESTRING")
+tmap_mode("plot")
+tm_shape(building)+
+tm_polygons(col = "grey60",
+           size = 1,
+           border.col = "black",
+           border.lwd = 1) +
+  tm_shape(log_path) +
+  tm_dots(col = "blue")
+tmap_mode("plot")
+```
